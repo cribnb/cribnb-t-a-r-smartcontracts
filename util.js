@@ -1,7 +1,7 @@
 
 module.exports = {
-    // formats result from PullReputationScore into a dict
-    cleansePullReputationScore: async promise => {
+    // formats result from PullRatingScore into a dict
+    cleansePullRatingScore: async promise => {
         let thrown = undefined;
         try {
             let result = await promise;

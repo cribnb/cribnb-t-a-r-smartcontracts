@@ -1,5 +1,5 @@
 /************************
- * Version 0.0 of Bee Arbitration
+ * Version 0.1 of Cribnb Arbitration
  * WARNING: byte code is real close to ganache limit
  * a few more lines and it won't port over but if you
  * use remix you have some room to spare.  There must be a
@@ -7,7 +7,8 @@
  * 
  * Not created for production
  * Not fully unit tested
- * No audits for hacking have been done
+ * No audits for hacking have 
+ been done
  * ***********************/
 
 
@@ -43,7 +44,7 @@ contract BaseModifiers is Ownable{
     }
 
 }
-contract BeeModifiers is BaseModifiers {
+contract CribnbModifiers is BaseModifiers {
     mapping (address => bool) public whiteListedContracts;
 
     function addContractAddress(address _contractAddress) onlyOwner external {
@@ -72,7 +73,7 @@ contract BeeModifiers is BaseModifiers {
     }
 }
 
-contract BeeArbEvents {
+contract CribnbArbEvents {
     
     event MinerBanned
     (
@@ -95,8 +96,8 @@ contract BeeArbEvents {
         uint256 timestamp, //timestamp of request
         uint256 minTime, //min timetimestamp to wait for when miners can start to try and arbitrate
         uint256 maxTime, //maximum timestamp to wait until before defaulting to default arbitrators
-        uint256 beeTokensDispute, //amount of bee tokens in dispute
-        uint256 beeTokensArbitration //amount of bee tokens paid for arbitration to occur
+        uint256 crbTokensDispute, //amount of crb tokens in dispute
+        uint256 crbTokensArbitration //amount of crb tokens paid for arbitration to occur
     );
     
     event MinerStartedMining
@@ -167,15 +168,15 @@ contract BeeArbEvents {
     (
         uint256 arbiterId, //id of arbiter
         uint256 voteId, // the unique id of the vote they needed to do but failed to do
-        uint256 beeTokenTaken, //amount paid
-        uint256 beeTokenStaked, //amount paid
+        uint256 crbTokenTaken, //amount paid
+        uint256 crbTokenStaked, //amount paid
         uint256 timestamp //timestamp of vote
     );
 
     
 }
 
-contract BeeArbitrationStructs {
+contract CribnbeArbitrationStructs {
     struct ArbitrationJob {
         uint256 arbitrationId; //if this was an appeal, this is the Id of the arbitration it came from
         bytes32 paymentId; //payment Ids are byte32s, reservation Id might be different
@@ -183,9 +184,9 @@ contract BeeArbitrationStructs {
         uint256 minMinerTime; //min timetimestamp to wait for when miners can start to try and arbitrate
         uint256 maxMinerTime; //maximum timestamp to wait until before defaulting to default arbitrators
         uint256 appealTimelimit; //maximum time allowed for appeal
-        uint256 beeTokensArbitrationFee; //amount of bee tokens paid for arbitration to occur
+        uint256 crbTokensArbitrationFee; //amount of crb tokens paid for arbitration to occur
         uint256 [] arbiterVoteIds;
-        uint256 disputedAmountOfBeeTokens;
+        uint256 disputedAmountOfCRBTokens;
         address host;
         address guest; 
     }
@@ -201,7 +202,7 @@ contract BeeArbitrationStructs {
         ArbiterAccessState accessState;//8bit int, holds info if they can mine or trigger
         address minerAddress; 
         uint256 miningArrayIndex;
-        uint256 currentBeeTokenStake;
+        uint256 currentCRBTokenStake;
         uint256 arbitrationsCompleted; //maybe put this in reputation api
         uint256 arbitrationsAppealed;  //maybe put this in reputation api
         uint256 [] arbiterVoteIds;
@@ -228,26 +229,26 @@ contract BeeArbitrationStructs {
     }
 }
 
-contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
+contract CribnbArbitration is CribnbArbEvents, CribnbModifiers, CribnbArbitrationStructs {
     using SafeMath for uint256;
 
-    uint8 beeTokenPenality = 100; //0-100% pentality for Arbiters's staked bee tokens if submission isn't completed by max time
-    uint8 activeMinerPayPercentage = 100; //After the triggerman get's paid, this is the percentage of bee tokens that are left over that get distributed among the arbiters
-    uint8 percentPenTokensToFee = 100; //percent of bee tokens taken from miners who didn't vote put into miners fee.  rest just lives in contract until owner pulls it out
+    uint8 crbTokenPenality = 100; //0-100% pentality for Arbiters's staked crb tokens if submission isn't completed by max time
+    uint8 activeMinerPayPercentage = 100; //After the triggerman get's paid, this is the percentage of crb tokens that are left over that get distributed among the arbiters
+    uint8 percentPenTokensToFee = 100; //percent of crb tokens taken from miners who didn't vote put into miners fee.  rest just lives in contract until owner pulls it out
     
-    uint8 percentAppealFeeToDisputeAmount = 0; //percent of bee tokens after we subtract arbitration fee to be put into dispute amount for host/ guest, the rest goes to owner of contract
+    uint8 percentAppealFeeToDisputeAmount = 0; //percent of crb tokens after we subtract arbitration fee to be put into dispute amount for host/ guest, the rest goes to owner of contract
 
-    uint8 [] triggermanPayBeeTokenAmount = [2,3,3,3,3,3];  //how much the triggerman gets paid.  each element in the array is a pay path
-    uint8 [] percentDisputedChoices = [0,25,50,75,100];//0,25,50,75,100 in whitepaper.  percent of bee tokens of the disputed amount to be distributed to the winner.  This is the vote choices
+    uint8 [] triggermanPayCRBTokenAmount = [2,3,3,3,3,3];  //how much the triggerman gets paid.  each element in the array is a pay path
+    uint8 [] percentDisputedChoices = [0,25,50,75,100];//0,25,50,75,100 in whitepaper.  percent of crb tokens of the disputed amount to be distributed to the winner.  This is the vote choices
 
     uint8 nonce = 0; //used for random number generation
     uint8 appealMultCost = 2; //multiplier of previous appeal cost so they appeal less
     uint8 arbitersPerJob = 5;
 
-    //todo figure out gas price of executing everything, write up code that gets current eth price and current bee price then figures out a correct arb fee or static?
+    //todo figure out gas price of executing everything, write up code that gets current eth price and current crb price then figures out a correct arb fee or static?
     uint256 public normArbFee = 1110000; //fee we charge to do arbitrations
 
-    uint256 public minMiningStake = 1000; //min number of bee tokens needed to stake for miners
+    uint256 public minMiningStake = 1000; //min number of crb tokens needed to stake for miners
     uint256 minMinerTime = 1 days; //min time to wait before miners can be selected as Arbiters
     uint256 maxMinerTime = 5 days; //max time to wait before going to default Arbiters
     uint256 appealTime = 3 days; //max time allowed for users to appeal decisions
@@ -262,8 +263,8 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
     mapping (bytes32 => uint256[]) public paymentIdToJobIds;
 
     
-    address beeTokenContractAddress;
-    ERC20 beeToken;  
+    address crbTokenContractAddress;
+    ERC20 crbToken;  
     
     
 ////////
@@ -285,17 +286,17 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
      *    values at location 0 so if there is a problem it's not as bad
      *  -functionhash- unknown yet
      */
-    constructor(address beeTokenAddress) 
+    constructor(address crbTokenAddress) 
     public 
     {
-        beeTokenContractAddress = beeTokenAddress;
-        beeToken = ERC20(beeTokenContractAddress);
+        crbTokenContractAddress = crbTokenAddress;
+        crbToken = ERC20(crbTokenContractAddress);
 
         
         Arbiter memory dummyArbiter = Arbiter({
             accessState:ArbiterAccessState.BANNED,
             minerAddress:0x0,
-            currentBeeTokenStake:0, 
+            currentCRBTokenStake:0, 
             arbitrationsCompleted:0, 
             arbitrationsAppealed:0, 
             miningArrayIndex:0,
@@ -312,9 +313,9 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
             minMinerTime:0, 
             maxMinerTime:0,
             appealTimelimit:0,
-            beeTokensArbitrationFee:0,
+            crbTokensArbitrationFee:0,
             arbiterVoteIds:new uint256[](arbitersPerJob),
-            disputedAmountOfBeeTokens:0,
+            disputedAmountOfCRBTokens:0,
             host:0x0,
             guest:0x0
         });
@@ -376,35 +377,35 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
             removeMinerFromQueue(index);
             curMiner.miningArrayIndex = 0;
             //they could still be voting so we don't want to return their stake in case we need to penalize them later
-            //require(beeToken.transfer(curMiner.minerAddress, curMiner.currentBeeTokenStake), "transfer to miner stake failed");
-            //curMiner.currentBeeTokenStake = 0;
+            //require(crbToken.transfer(curMiner.minerAddress, curMiner.currentCRBTokenStake), "transfer to miner stake failed");
+            //curMiner.currentCRBTokenStake = 0;
         }
 //        emit MinerBanned(arbId, now);
     }
 
-    //Ability for owner to transfer other ERC20 tokens as well as bee dust out
+    //Ability for owner to transfer other ERC20 tokens as well as crb dust out
     function transferToken(address tokenContractAddress, address transferTo, uint256 value) 
         onlyOwner 
         external 
     {
         ERC20 token = ERC20(tokenContractAddress); 
-        if (tokenContractAddress == beeTokenContractAddress) { //if owner is transfering out bee token dust, make sure owner doesn't try and transfer out promised bee tokens
-            uint256 promisedBeeTokens = 0;
+        if (tokenContractAddress == crbTokenContractAddress) { //if owner is transfering out crb token dust, make sure owner doesn't try and transfer out promised crb tokens
+            uint256 promisedCRBTokens = 0;
             for (uint256 i =0; i<arbitrationJobs.length; i++) {
                 if (now < arbitrationJobs[i].appealTimelimit || now < arbitrationJobs[i].maxMinerTime || now < arbitrationJobs[i].minMinerTime) {
-                    promisedBeeTokens += arbitrationJobs[i].beeTokensArbitrationFee;
-                    promisedBeeTokens += arbitrationJobs[i].disputedAmountOfBeeTokens;
+                    promisedCRBTokens += arbitrationJobs[i].crbTokensArbitrationFee;
+                    promisedCRBTokens += arbitrationJobs[i].disputedAmountOfCRBTokens;
                 }
             }
             
             for (uint256 j =0; j<arbitersMining.length; j++) {
-                promisedBeeTokens += existingArbiters[arbitersMining[j].miningId].currentBeeTokenStake;
+                promisedCRBTokens += existingArbiters[arbitersMining[j].miningId].currentCRBTokenStake;
             }
             
-            uint256 extraBeeTokens = token.balanceOf(this)-promisedBeeTokens;
-            require(value <= extraBeeTokens, "not enough bee tokens");
+            uint256 extraCRBTokens = token.balanceOf(this)-promisedCRBTokens;
+            require(value <= extraCRBTokens, "not enough crb tokens");
         }
-         require(token.transfer(transferTo, value), "trasfer of bee tokens to user failed");
+         require(token.transfer(transferTo, value), "trasfer of crb tokens to user failed");
     }
 
 ////////
@@ -412,24 +413,24 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
 ////////
 
     /**
-     * @dev bee payment contract must transfer the tokens before calling this
+     * @dev crb payment contract must transfer the tokens before calling this
      *  method or it will return an error.  only payment contract can call this
      *  Starts up an arbitration, don't forget to pay the arbitration fee on top
      *  of the dispute amount
      *  -functionhash- unknown yet
      * @param paymentId The Id that all the booking info is under
-     * @param disputedBeeTokensAndFee How many bee tokens are under dispute
+     * @param disputedCRBTokensAndFee How many crb tokens are under dispute
      * @param host The host eth wallet address
      * @param guest The guest eth wallet address
      */
      //norm flow testing complete
-    function requestArbitration(bytes32 paymentId, uint256 disputedBeeTokensAndFee, address guest, address host)
+    function requestArbitration(bytes32 paymentId, uint256 disputedCRBTokensAndFee, address guest, address host)
         external
         isWhitelistedContract()
         isActivated()
     { 
-        require(beeToken.transferFrom(msg.sender, address(this), disputedBeeTokensAndFee), "unable to transfer tokens from contract"); 
-        createJob(paymentId, disputedBeeTokensAndFee.sub(normArbFee), host, guest, 0);
+        require(crbToken.transferFrom(msg.sender, address(this), disputedCRBTokensAndFee), "unable to transfer tokens from contract"); 
+        createJob(paymentId, disputedCRBTokensAndFee.sub(normArbFee), host, guest, 0);
 
         //event launched in create job, less reads
     }
@@ -441,7 +442,7 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
     /**
      * @dev anyone can request an appeal but usually the host / guest would. 
      *   as a design decision I could limit it to a host or guest, but if there
-     *   is a bad vote, we as bee token can pay to request an appeal.
+     *   is a bad vote, we as crb token can pay to request an appeal.
      *   
      *  -functionhash- unknown yet
      * @param prevArbId the arbitration that the person wants to dispute
@@ -462,11 +463,11 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
         uint256 appealCost = normArbFee.mul(appealMultCost);
 
         //request money for appeal 
-        require(beeToken.transferFrom(msg.sender, address(this), appealCost), "payment for appeal rejected"); 
-        uint256 extraBeeTokensFromAppeal = appealCost.sub(normArbFee);
-        uint256 beeToAddToDispute = extraBeeTokensFromAppeal.mul(percentAppealFeeToDisputeAmount) / 100;
+        require(crbToken.transferFrom(msg.sender, address(this), appealCost), "payment for appeal rejected"); 
+        uint256 extraCRBTokensFromAppeal = appealCost.sub(normArbFee);
+        uint256 crbToAddToDispute = extraCRBTokensFromAppeal.mul(percentAppealFeeToDisputeAmount) / 100;
 
-        createJob(prevJob.paymentId, prevJob.disputedAmountOfBeeTokens.add(beeToAddToDispute)
+        createJob(prevJob.paymentId, prevJob.disputedAmountOfCRBTokens.add(crbToAddToDispute)
         , prevJob.host, prevJob.guest, prevArbId);
         
         removeIndexFromArray(prevArbId, jobsInProgress);
@@ -480,15 +481,15 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
      *   to get mined otherwise it's kind of wasted gas.  it announces that
      *   the user is ready to get picked to be an arbiter
      *  -functionhash- unknown yet
-     * @param beeToStake The amount of bee tokens the miner is staking
+     * @param crbToStake The amount of crb tokens the miner is staking
      */
      //norm flow tested
-    function startMining(uint256 beeToStake)
+    function startMining(uint256 crbToStake)
         external
         isNotContract()
         isActivated()
     {
-        require(beeToStake >= minMiningStake, "bee token stake not at least minimum required");
+        require(crbToStake >= minMiningStake, "crb token stake not at least minimum required");
         //check to see if user has a miner Id, if not, create miner and assign Id
         uint256 minerId = addressToMinerId[msg.sender];
         if (minerId == 0) {
@@ -498,14 +499,14 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
         Arbiter memory curMiner = existingArbiters[minerId];
         if (curMiner.accessState == ArbiterAccessState.APPROVED) {
             require (curMiner.miningArrayIndex == 0, "miner already in mining queue"); //require that the user is not currently in the mining state        
-            require(beeToken.transferFrom(curMiner.minerAddress, address(this), beeToStake), "bee token stake payment fail"); //get staked tokens
-            curMiner.currentBeeTokenStake = beeToStake;
+            require(crbToken.transferFrom(curMiner.minerAddress, address(this), crbToStake), "crb token stake payment fail"); //get staked tokens
+            curMiner.currentCRBTokenStake = crbToStake;
             
             //put miner into mining queue
             uint256 completedJobs = curMiner.arbitrationsCompleted.add(2); //make it not perfect and avoid div 0 err
             uint256 appealed = curMiner.arbitrationsAppealed.add(1); //make it not perfect and avoid div 0 err
             uint256 goodJobs = completedJobs.sub(appealed);
-            uint256 tickets = beeToStake.mul(goodJobs) /completedJobs;
+            uint256 tickets = crbToStake.mul(goodJobs) /completedJobs;
         
         
             MinerTicketHolder memory curTickets = MinerTicketHolder({
@@ -516,13 +517,13 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
             uint256 minerArrayIndex = arbitersMining.push(curTickets)-1;
             curMiner.miningArrayIndex = minerArrayIndex;
             existingArbiters[minerId] = curMiner;            
-            emit MinerStartedMining(minerId,minerArrayIndex, beeToStake, now);
+            emit MinerStartedMining(minerId,minerArrayIndex, crbToStake, now);
 
         } else {
             if (curMiner.accessState == ArbiterAccessState.BANNED) {
-                emit MinerFailedStartedMining(minerId,"miner banned", beeToStake, now);
+                emit MinerFailedStartedMining(minerId,"miner banned", crbToStake, now);
             } else if (curMiner.accessState == ArbiterAccessState.PENDING_APPROVAL) {
-                emit MinerFailedStartedMining(minerId,"miner pending approval", beeToStake, now);
+                emit MinerFailedStartedMining(minerId,"miner pending approval", crbToStake, now);
             }
         }
 
@@ -547,10 +548,10 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
         
         removeMinerFromQueue(index);
 
-        require(beeToken.transfer(curMiner.minerAddress, curMiner.currentBeeTokenStake), "transfer to miner stake failed");
+        require(crbToken.transfer(curMiner.minerAddress, curMiner.currentCRBTokenStake), "transfer to miner stake failed");
 
-        emit MinerStoppedMining (minerId, curMiner.currentBeeTokenStake, now);
-        curMiner.currentBeeTokenStake = 0;
+        emit MinerStoppedMining (minerId, curMiner.currentCRBTokenStake, now);
+        curMiner.currentCRBTokenStake = 0;
         curMiner.miningArrayIndex = 0;
         existingArbiters[minerId] = curMiner;
     }
@@ -626,7 +627,7 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
     /**
      * @dev once the miner is named to be an arbiter, then they can get paid to
      *   vote, once they vote, we pay them.  The arbiter will only get the
-     *   payment Id and amount of bee in dispute info from this contract,
+     *   payment Id and amount of crb in dispute info from this contract,
      *   they will need to get the rest of the info via centeralized backend
      *   or payment contract for now (TODO change when storage gets cheaper)
      *  -functionhash- unknown yet
@@ -756,8 +757,8 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
     function payArbs (ArbitrationJob memory currentJob) 
         internal
     {
-        uint256 beeTokenPaymentForArbitration = currentJob.beeTokensArbitrationFee.mul(activeMinerPayPercentage) / 100;
-        beeTokenPaymentForArbitration = beeTokenPaymentForArbitration/currentJob.arbiterVoteIds.length;
+        uint256 crbTokenPaymentForArbitration = currentJob.crbTokensArbitrationFee.mul(activeMinerPayPercentage) / 100;
+        crbTokenPaymentForArbitration = crbTokenPaymentForArbitration/currentJob.arbiterVoteIds.length;
            
         for (uint256 i=0; i < currentJob.arbiterVoteIds.length; i++) {
             ArbiterVote storage currentVote = arbVotes[currentJob.arbiterVoteIds[i]]; //storage cuz we are gonna mark as paid after
@@ -765,10 +766,10 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
             currentVote.state = VoteState.VOTE_PAID;
             uint256 minerId = currentVote.arbiterId;
             Arbiter memory curMiner = existingArbiters[minerId];
-            require(beeToken.transfer(curMiner.minerAddress, beeTokenPaymentForArbitration), "err transfering to arbiter for voting");
+            require(crbToken.transfer(curMiner.minerAddress, crbTokenPaymentForArbitration), "err transfering to arbiter for voting");
         
             
-            emit ArbiterPaid(minerId, currentVote.vote, beeTokenPaymentForArbitration, now);
+            emit ArbiterPaid(minerId, currentVote.vote, crbTokenPaymentForArbitration, now);
         }
 
     }
@@ -777,24 +778,24 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
      * @dev creates a job
      *  -functionhash- unknown yet
      * @param paymentId The Id that all the booking info is under
-     * @param disputedBeeTokens How many bee tokens are under dispute
+     * @param disputedCRBTokens How many crb tokens are under dispute
      * @param host The host eth wallet address
      * @param guest The guest eth wallet address
      * @param arbitrationId If the job came from an appeal, the arbitrationId of the original job
      */
-    function createJob(bytes32 paymentId, uint256 disputedBeeTokens, address host, address guest, uint256 arbitrationId)
+    function createJob(bytes32 paymentId, uint256 disputedCRBTokens, address host, address guest, uint256 arbitrationId)
         internal
         
     {
         uint256 arbitrationFee = normArbFee;
-        //check to see if we have enough bee tokens in the wallet to do as promised
-        uint256 totalPromisedBeeTokens = arbitrationFee.add(disputedBeeTokens);
+        //check to see if we have enough crb tokens in the wallet to do as promised
+        uint256 totalPromisedCRBTokens = arbitrationFee.add(disputedCRBTokens);
         for (uint i=0; i<arbitrationJobs.length; i++) {
             // do something
-            totalPromisedBeeTokens.add(arbitrationJobs[i].beeTokensArbitrationFee);
+            totalPromisedCRBTokens.add(arbitrationJobs[i].crbTokensArbitrationFee);
         }
-        require (beeToken.balanceOf(address(this)) >= totalPromisedBeeTokens, "not enough bee tokens in contract to do job");
-        //require (disputedBeeTokens > surgeArbFee); //make sure they have enough to pay for surge plus triggerman TODO: figure out triggerman cost sub norm arb cost
+        require (crbToken.balanceOf(address(this)) >= totalPromisedCRBTokens, "not enough crb tokens in contract to do job");
+        //require (disputedCRBTokens > surgeArbFee); //make sure they have enough to pay for surge plus triggerman TODO: figure out triggerman cost sub norm arb cost
         uint256 timeRquested = now;
         uint256 curArbId = arbitrationJobs.length;
         ArbitrationJob memory currentJob = ArbitrationJob({
@@ -804,9 +805,9 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
             minMinerTime:timeRquested.add(minMinerTime), 
             maxMinerTime:timeRquested.add(minMinerTime).add(maxMinerTime), 
             appealTimelimit:0,
-            beeTokensArbitrationFee:arbitrationFee,
+            crbTokensArbitrationFee:arbitrationFee,
             arbiterVoteIds:new uint256[](arbitersPerJob),
-            disputedAmountOfBeeTokens:disputedBeeTokens,
+            disputedAmountOfCRBTokens:disputedCRBTokens,
             host:host,
             guest:guest
         });
@@ -818,7 +819,7 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
         //put into arbitration queue
         jobsInProgress.push(curArbId);
         
-        emit ArbRequested(arbitrationId, paymentId, timeRquested, timeRquested.add(minMinerTime), timeRquested.add(maxMinerTime), disputedBeeTokens, arbitrationFee);
+        emit ArbRequested(arbitrationId, paymentId, timeRquested, timeRquested.add(minMinerTime), timeRquested.add(maxMinerTime), disputedCRBTokens, arbitrationFee);
     }
     
     /**
@@ -908,17 +909,17 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
         uint256 [] memory jobVotes = currentJob.arbiterVoteIds;
         
 
-        uint256 beeTokenTaken = 0;
+        uint256 crbTokenTaken = 0;
         //trim non voters out and keep the ones who voted
         for (uint256 currentJobIndex = 0; currentJobIndex<jobVotes.length; currentJobIndex++) {
             if (jobVotes[currentJobIndex] != 0 && arbVotes[jobVotes[currentJobIndex]].state == VoteState.PENDING_VOTE) { //keep votes that happened
-                beeTokenTaken += penalizeArbiter(jobVotes[currentJobIndex]);
+                crbTokenTaken += penalizeArbiter(jobVotes[currentJobIndex]);
                 //replace bad vote slot in job with blank job to fill with a miner at a later date
                 assignVote(currentJob, currentJobId, currentJobIndex);
             }
         }
-        beeTokenTaken = beeTokenTaken.mul(percentPenTokensToFee) / 100; //calculate what is added to fee
-        currentJob.beeTokensArbitrationFee += beeTokenTaken;
+        crbTokenTaken = crbTokenTaken.mul(percentPenTokensToFee) / 100; //calculate what is added to fee
+        currentJob.crbTokensArbitrationFee += crbTokenTaken;
     }
     /**
      * @dev  selected miners from the mining pool to become Arbitors
@@ -987,9 +988,9 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
         internal
     {
         //triggerman always pays himself
-        uint256 beeTokenPaymentForTrigger = triggermanPayBeeTokenAmount[pathCompleted];
-        currentJob.beeTokensArbitrationFee = currentJob.beeTokensArbitrationFee.sub(beeTokenPaymentForTrigger);
-        require(beeToken.transfer(msg.sender, beeTokenPaymentForTrigger), "error paying / transfering to triggerman");
+        uint256 crbTokenPaymentForTrigger = triggermanPayCRBTokenAmount[pathCompleted];
+        currentJob.crbTokensArbitrationFee = currentJob.crbTokensArbitrationFee.sub(crbTokenPaymentForTrigger);
+        require(crbToken.transfer(msg.sender, crbTokenPaymentForTrigger), "error paying / transfering to triggerman");
     }
     /**
      * @dev figures out how much to pay everyone then pays them.
@@ -1008,13 +1009,13 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
         }
         uint256 medianPercent = totalPercent / currentJob.arbiterVoteIds.length;
 
-        uint256 beeTokenForHost = 
-        currentJob.disputedAmountOfBeeTokens.mul(medianPercent)/100;
-        require(beeToken.transfer(currentJob.host, beeTokenForHost), "err transfering to host");
+        uint256 crbTokenForHost = 
+        currentJob.disputedAmountOfCRBTokens.mul(medianPercent)/100;
+        require(crbToken.transfer(currentJob.host, crbTokenForHost), "err transfering to host");
 
-        uint256 beeTokenForGuest = currentJob.disputedAmountOfBeeTokens.
-        sub(beeTokenForHost);
-        require(beeToken.transfer(currentJob.guest, beeTokenForGuest), "err transfering to guest");
+        uint256 crbTokenForGuest = currentJob.disputedAmountOfCRBTokens.
+        sub(crbTokenForHost);
+        require(crbToken.transfer(currentJob.guest, crbTokenForGuest), "err transfering to guest");
         
         
         emit ArbCompleted(arbitraionJobId, medianPercent, currentJob.paymentId, now);
@@ -1034,22 +1035,22 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
         require (currentVote.state == VoteState.PENDING_VOTE, "arbiter not in pending vote state, can't penalize");
         Arbiter storage curMiner = existingArbiters[currentVote.arbiterId];
 
-        uint256 beeTokenTaken = (curMiner.currentBeeTokenStake).mul(beeTokenPenality) / 100;
-        uint256 salvagedBeeTokens = curMiner.currentBeeTokenStake.sub(beeTokenTaken);
+        uint256 crbTokenTaken = (curMiner.currentCRBTokenStake).mul(crbTokenPenality) / 100;
+        uint256 salvagedCRBTokens = curMiner.currentCRBTokenStake.sub(crbTokenTaken);
         
-        if (salvagedBeeTokens > 0) {
-            require(beeToken.transfer(curMiner.minerAddress, salvagedBeeTokens), "err transfering bee from bad arbiter");//take bee tokens from Arbiter
+        if (salvagedCRBTokens > 0) {
+            require(crbToken.transfer(curMiner.minerAddress, salvagedCRBTokens), "err transfering crb from bad arbiter");//take crb tokens from Arbiter
         }
         
-        emit ArbiterPenalized(currentVote.arbiterId, voteId, beeTokenTaken,curMiner.currentBeeTokenStake, now);
+        emit ArbiterPenalized(currentVote.arbiterId, voteId, crbTokenTaken,curMiner.currentCRBTokenStake, now);
         
         currentVote.state = VoteState.PENALIZED_NO_VOTE;
-        curMiner.currentBeeTokenStake = 0;
+        curMiner.currentCRBTokenStake = 0;
 
         removeMinerFromQueue(curMiner.miningArrayIndex); //remove miner from mining because they didn't do their job
 
         //select one more Arbiter
-        return beeTokenTaken;
+        return crbTokenTaken;
     }
     /**
      * @dev internal function that helps select one arbiter
@@ -1123,7 +1124,7 @@ contract BeeArbitration is BeeArbEvents, BeeModifiers, BeeArbitrationStructs {
         Arbiter memory curMiner = Arbiter({
             accessState:ArbiterAccessState.PENDING_APPROVAL,
             minerAddress:msg.sender,
-            currentBeeTokenStake:0, 
+            currentCRBTokenStake:0, 
             arbitrationsCompleted:0, 
             arbitrationsAppealed:0, 
             miningArrayIndex:0,

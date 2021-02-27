@@ -2,13 +2,13 @@ const TestToken = artifacts.require("TestToken");
 const TestArbitration = artifacts.require("TestArbitration");
 const TokenPayments = artifacts.require("TokenPayments");
 
-const ROPSTEN_BEETOKEN_ADDRESS = '0x7fffac23d59d287560dfeca7680b5393426cf503';
+const ROPSTEN_CRBTOKEN_ADDRESS = '';
 
 function parameterize(network) {
   switch (network) {
   case 'ropsten': // Ropsten
     return {
-      token: ROPSTEN_BEETOKEN_ADDRESS,
+      token: ROPSTEN_CRBTOKEN_ADDRESS,
       arbitration: '0x0',
       cancelPeriod: 60 * 60,
       disputePeriod: 60 * 60

@@ -1,5 +1,5 @@
 const TestToken = artifacts.require("TestToken");
-const CribnbArbitration = artifacts.require("CribArbitration");
+const CribnbArbitration = artifacts.require("CribnbArbitration");
 
 function parameterize(network) {
   switch (network) {

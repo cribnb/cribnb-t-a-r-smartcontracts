@@ -1,12 +1,12 @@
 const TestToken = artifacts.require("TestToken");
-const BeeArbitration = artifacts.require("BeeArbitration");
-const BeePayment = artifacts.require("BeePayment");
+const CribnbArbitration = artifacts.require("CribnbArbitration");
+const CribnbTransaction = artifacts.require("CribnbTransactiont");
 
 function parameterize(network) {
   switch (network) {
   case 'ropsten': // Ropsten
     return {
-      token: 0x7fffac23d59d287560dfeca7680b5393426cf503,
+      token: "tokenaddress,
     };
   case 'development':
   case 'coverage':

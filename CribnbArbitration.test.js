@@ -1,9 +1,9 @@
 const TestToken = artifacts.require("TestToken");
-const BeeArbitration = artifacts.require("BeeArbitration");
-const BeePayment = artifacts.require("BeePayment");
+const CribnbArbitration = artifacts.require("CribnbArbitration");
+const CribnbTransaction = artifacts.require("CribnbTransaction");
 const util = require("./util.js");
 
-contract('BeeArbitration Dispatch Test', function (accounts) {
+contract('CribnbArbitration Dispatch Test', function (accounts) {
     // account[0] points to the owner on the testRPC setup
     const arbOwner = accounts[0];
     const triggerman = accounts[1];
@@ -30,8 +30,8 @@ contract('BeeArbitration Dispatch Test', function (accounts) {
 
     beforeEach(async function () {
       token = await TestToken.new('1000000000000000000000000000', otherOwner, { from: otherOwner});
-      arbitration = await BeeArbitration.new(token.address, {from: arbOwner,  gas: 80000000 });
-      payment = await BeePayment.new(token.address, arbitration.address, { from: otherOwner});
+      arbitration = await CribnbArbitration.new(token.address, {from: arbOwner,  gas: 80000000 });
+      payment = await CribnbTransaction.new(token.address, arbitration.address, { from: otherOwner});
       
       const balance = await token.balanceOf(guest);
       await Promise.all([...accounts, arbitration.address].map(
@@ -59,7 +59,7 @@ contract('BeeArbitration Dispatch Test', function (accounts) {
       await send('evm_mine');
     }
 
-  it("check functionality of transferToken, trasnfer with no bee promised", async function () {
+  it("check functionality of transferToken, trasnfer with no crb promised", async function () {
     await arbitration.activateContract({ from: arbOwner });//activate arbitration contract
     await arbitration.addContractAddress(payment.address, { from: arbOwner });//whitelist payment contract
 
@@ -104,7 +104,7 @@ contract('BeeArbitration Dispatch Test', function (accounts) {
     await token.transfer(arbitration.address, total, { from: guest });
 
     //have dispute amount in there
-    let paymentId = '0xdeadbeef00000000000000000000000000000000000000000000000000000000';
+    let paymentId = '0xdeadcrbf00000000000000000000000000000000000000000000000000000000';
     await payment.sendArbitrationRequest(guest, host, disputeAmount, paymentId);
 
     await arbitration.startMining(normStakeAmount, { from: miner5 });
@@ -375,7 +375,7 @@ contract('BeeArbitration Dispatch Test', function (accounts) {
     await util.assertErrorThrown(
       arbitration.arbitrationJobs(1, { from: triggerman }) //should be 1 dummy at index 0, 1 is the next location a miner can go
     );
-    let paymentId = '0xdeadbeef00000000000000000000000000000000000000000000000000000000';
+    let paymentId = '0xdeadcrbf00000000000000000000000000000000000000000000000000000000';
     await payment.sendArbitrationRequest(guest, host, disputeAmount, paymentId);
     
     //check arbitration job is in there
@@ -448,10 +448,10 @@ contract('BeeArbitration Dispatch Test', function (accounts) {
     let arbitrationFeeBeforeTrigger = jobDat[6];
     await arbitration.triggerArbJob(nextNeededJobToTrigger, {from: triggerman});
 
-//check triggerman's balanceOf bee tokens to make sure triggerman got paid
+//check triggerman's balanceOf crb tokens to make sure triggerman got paid
     let triggermanBalanceAfterTrigger = await token.balanceOf(triggerman); 
     assert.equal(triggermanBalanceBeforeTrigger < triggermanBalanceAfterTrigger, true, "triggerman not paid for first trigger");
-//check to see that beeArbitrationFee got reduced by triggerman's pay
+//check to see that crbArbitrationFee got reduced by triggerman's pay
     jobDat = await arbitration.arbitrationJobs(1, { from: triggerman }); //should be 1 dummy at index 0, 1 is the next location a miner can go
     assert.equal(jobDat[6]< arbitrationFeeBeforeTrigger, true, "arbitration fee needs to be reduced after paying triggerman"); 
     nextNeededJobToTrigger = await arbitration.checkTriggermanNextNeededJob({from: triggerman});
@@ -516,7 +516,7 @@ contract('BeeArbitration Dispatch Test', function (accounts) {
     await util.assertErrorThrown(
       arbitration.arbitrationJobs(1, { from: triggerman }) //should be 1 dummy at index 0, 1 is the next location a miner can go
     );
-    let paymentId = '0xdeadbeef00000000000000000000000000000000000000000000000000000000';
+    let paymentId = '0xdeadcrbf00000000000000000000000000000000000000000000000000000000';
     await payment.sendArbitrationRequest(guest, host, disputeAmount, paymentId);
     
     let jobDat = await arbitration.arbitrationJobs(1, { from: triggerman }) //should be 1 dummy at index 0, 1 is the next location a miner can go
@@ -650,7 +650,7 @@ assert.equal(hostRulingSupposeToBe, hostGain, "host not accurately paid for rend
     await util.assertErrorThrown(
       arbitration.arbitrationJobs(1, { from: triggerman }) //should be 1 dummy at index 0, 1 is the next location a miner can go
     );
-    let paymentId = '0xdeadbeef00000000000000000000000000000000000000000000000000000000';
+    let paymentId = '0xdeadcrbf00000000000000000000000000000000000000000000000000000000';
     await payment.sendArbitrationRequest(guest, host, disputeAmount, paymentId);
     
     let jobDat = await arbitration.arbitrationJobs(1, { from: triggerman }) //should be 1 dummy at index 0, 1 is the next location a miner can go
@@ -778,7 +778,7 @@ assert.equal(hostBalanceBeforeTrigger.valueOf(), hostBalanceAfterTrigger.valueOf
     await util.assertErrorThrown(
       arbitration.arbitrationJobs(1, { from: triggerman }) //should be 1 dummy at index 0, 1 is the next location a miner can go
     );
-    let paymentId = '0xdeadbeef00000000000000000000000000000000000000000000000000000000';
+    let paymentId = '0xdeadcrbf00000000000000000000000000000000000000000000000000000000';
     await payment.sendArbitrationRequest(guest, host, disputeAmount, paymentId);
 
     let jobDat = await arbitration.arbitrationJobs(1, { from: triggerman }) //should be 1 dummy at index 0, 1 is the next location a miner can go
